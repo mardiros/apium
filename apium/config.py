@@ -68,7 +68,7 @@ class Configurator(object):
 
         self.settings = {'broker_url': broker_url,
                          'max_workers': max_workers,
-                         'result_exchange': '#apiumresult-{hostname}-{pid}'}
+                         'result_exchange': result_exchange}
         self.routes = routes or {}
         self.task_import = task_import or []
         broker = broker_url.split(':', 1).pop(0).split('+').pop(0)
