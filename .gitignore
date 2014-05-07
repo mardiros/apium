@@ -21,6 +21,8 @@ var/
 *.egg-info/
 .installed.cfg
 *.egg
+venv
+contrib
 
 # Installer logs
 pip-log.txt
@@ -51,4 +53,7 @@ coverage.xml
 
 # Sphinx documentation
 docs/_build/
+
+# Personal configuration file
+apium.yaml
 

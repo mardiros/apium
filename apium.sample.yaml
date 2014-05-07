@@ -1,0 +1,49 @@
+# sample apium configuration file
+
+apium:
+    broker:
+        url: amqp://localhost/
+        # url: amqp://user:password@host:port/vhost
+    serializer: json
+    result_exchange: '&{hostname}-{pid}'
+    worker:
+        type: process
+        max_workers: 2
+    routes:
+        default_queue: '#master'
+        queues:
+            '#other':
+                - apium.task.sample.add
+    import:
+        - apium.task.sample
+
+logging:
+    version: 1
+    disable_existing_loggers: True
+    formatters:
+        simple:
+            format: "[%(asctime)s][%(levelname)s] %(name)s: %(message)s"
+
+    handlers:
+        console:
+            class: logging.StreamHandler
+            formatter: simple
+            stream: ext://sys.stderr
+
+    loggers:
+        apium:
+            level: DEBUG
+            handlers:
+                 - console
+            propagate: no
+
+        pika:
+            level: INFO
+            handlers:
+                 - console
+            propagate: no
+
+    root:
+        level: INFO
+        handlers:
+            - console
