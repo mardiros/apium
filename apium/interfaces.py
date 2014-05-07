@@ -2,11 +2,7 @@
 
 Apium interfaces.
 
-Apium use zope.interface to configure different broker engine, serializer,
-workers or other stuff.
-Basically every implementation are changeable via the configurator (which
-is not changeable). Classes like Task or TaskRegistry are changeable too,
-but the default implementation should works most of the time.
+Apium use zope.interface to configure different broker, serializer, workers.
 
 """
 
