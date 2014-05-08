@@ -1,0 +1,4 @@
+PyYAML==3.11
+git+https://github.com/mardiros/aioamqp.git
+simplejson==3.4.1
+zope.interface==4.1.1

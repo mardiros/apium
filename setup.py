@@ -15,8 +15,11 @@ with open(os.path.join(here, 'apium', '__init__.py')) as version:
                          re.S).match(version.read()).group(1)
 
 
-requires = ['zope.interface']
-
+requires = ['zope.interface',
+            'PyYAML',
+            'simplejson',
+            # git+https://github.com/mardiros/aioamqp.git
+            ]
 
 setup(name=NAME,
       version=VERSION,
