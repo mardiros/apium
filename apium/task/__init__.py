@@ -64,7 +64,6 @@ class TaskRequest:
 
     def __init__(self, application, task_name, task_args, task_kwargs,
                  uuid=None, ignore_result=None,
-                 default_timeout=None,
                  result_queue=None):
         self._app = application
         self.uuid = uuid or str(uuid4())
@@ -72,7 +71,6 @@ class TaskRequest:
         self.task_args = task_args
         self.task_kwargs = task_kwargs
         self.result_queue = result_queue or self._app.get_result_queue()
-        self.default_timeout = default_timeout
         self.ignore_result = ignore_result
 
     @asyncio.coroutine
@@ -88,9 +86,6 @@ class TaskRequest:
 
         :return: the result of the task
         """
-        if timeout is None:
-            timeout = self.default_timeout
-
         result = yield from self._app.pop_result(self, timeout)
         return result
 
@@ -152,19 +147,23 @@ class Task:
             self.ignore_result = kwargs['ignore_result']
         if 'timeout' in kwargs:
             self.timeout = kwargs['timeout']
-        if 'queue' in kwargs:
-            self.queue = kwargs['queue']
         self._name = kwargs.get('name', None)
 
     @asyncio.coroutine
     def __call__(self, *args, **kwargs):
+        ignore_result = self.ignore_result
+        timeout = self.timeout
+        if 'task_options' in kwargs:
+            task_options = kwargs.pop('task_options')
+            ignore_result = task_options.get('ignore_result', ignore_result)
+            timeout = task_options.get('timeout', timeout)
+
         request = TaskRequest(self._app, self.name, args, kwargs,
-                              ignore_result=self.ignore_result,
-                              default_timeout=self.timeout)
+                              ignore_result=ignore_result)
         yield from self._app.push_task(request)
-        if self.ignore_result:
+        if ignore_result:
             return
-        result = yield from request.get()
+        result = yield from request.get(timeout)
         return result
 
     def excecute(self, *args, **kwargs):
@@ -195,7 +194,7 @@ def execute_task(task_name, uuid, args, kwargs):
                   ''.format(exc, task_name, args, kwargs))
         ret = TaskResponse(uuid, 'ERROR',
                            exception=exc,
-                           traceback=sys.last_traceback)
+                           traceback=sys.exc_info[2])
 
     ret = ret.to_dict()
     log.info('task {} executed'.format(task_name))

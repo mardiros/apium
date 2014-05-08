@@ -48,7 +48,7 @@ class IApium(Interface):
         """ Pop a task to be processed for the given queues.
          If no queues are passed, all queues will be tracked. """
 
-    def pop_result(self, task_request):
+    def pop_result(self, task_request, timeout=None):
         """ Lock until the result is ready, then return the result """
 
     def task(self, *args, **task_options):

@@ -26,7 +26,7 @@ def routine(future):
         result = yield from divide(8, 2)
         print("8 / 2 = ", result)
 
-        result = yield from noop(2)
+        result = yield from noop(2, task_options={'timeout': 1})
         print (result)
 
     except Exception as exc:
