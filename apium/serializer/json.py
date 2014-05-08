@@ -10,6 +10,7 @@ from apium.interfaces import ISerializer
 
 log = logging.getLogger(__name__)
 
+
 @implementer(ISerializer)
 class Serializer:
 

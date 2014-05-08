@@ -58,7 +58,7 @@ class TaskRegistry(object):
         return self.default_queue
 
 
-class AsyncResult(object):
+class AsyncResult:
     """ An Async Result implementation """
 
     def __init__(self, application, task_name, task_args, task_kwargs,
@@ -71,8 +71,6 @@ class AsyncResult(object):
         self.task_args = task_args
         self.task_kwargs = task_kwargs
         self.result_queue = result_queue or self._app.get_result_queue()
-        self.callbacks = []
-        self.parent = None
         self.default_timeout = default_timeout
         self.ignore_result = ignore_result
 
@@ -116,11 +114,10 @@ class AsyncResult(object):
         return '<AsyncResult {}>'.format(self.uuid)
 
 
-class Task(object):
+class Task:
     ignore_result = False
     queue = None
     timeout = None
-    _tasks = {}
 
     @property
     def name(self):
@@ -154,7 +151,7 @@ class Task(object):
     def excecute(self, *args, **kwargs):
         """ execute the wrapped method """
         return (self.method(*args, **kwargs)  # function decorated
-                if isinstance(self.method,  types.FunctionType)
+                if isinstance(self.method, types.FunctionType)
                 else self.method()(*args, **kwargs)  # class decorated
                 )
 

@@ -52,6 +52,7 @@ def get(adapted_iface, original_iface=IApium):
 
 _instances = {}
 
+
 def get_component(adapted_iface, original_iface=IApium):
     """ Return a singleton object for the given interface """
 

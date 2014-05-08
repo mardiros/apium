@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import logging
 import asyncio
 from concurrent.futures import ProcessPoolExecutor
@@ -12,7 +11,7 @@ log = logging.getLogger(__name__)
 
 
 @implementer(IWorker)
-class Worker(object):
+class Worker:
 
     name = 'process'
 
@@ -46,7 +45,7 @@ class Worker(object):
             except Exception:
                 log.error('Unexpected error while retrieving task',
                           exc_info=True)
-                yield from asyncio.sleep(10)
+                yield from asyncio.sleep(0)
                 continue
             try:
                 log.info('Received task {task_name} {uuid}'

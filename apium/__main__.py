@@ -10,6 +10,7 @@ from apium.config import Configurator
 
 log = logging.getLogger(__name__)
 
+
 @asyncio.coroutine
 def start_worker(queues):
     try:
@@ -43,12 +44,6 @@ def dispose(signame, future):
         future.set_result(1)
 
 
-@asyncio.coroutine
-def ask_exit(signame, future):
-    print("got signal %s: exit" % signame)
-    yield from asyncio.sleep(10.0)
-    #
-
 def main(args=sys.argv):
 
     parser = argparse.ArgumentParser()
@@ -58,7 +53,7 @@ def main(args=sys.argv):
     sp_worker = subparsers.add_parser('start', help='start the worker')
     sp_worker.set_defaults(func=start_worker)
 
-    parser.add_argument('--queues', '-Q',  dest='queues', action='store',
+    parser.add_argument('--queues', '-Q', dest='queues', action='store',
                         default=None,
                         help='comma separate queues to treat, worker will'
                              'process every queues if not provided')

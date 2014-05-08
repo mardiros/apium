@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Apium application container
 """
@@ -56,7 +55,7 @@ class Apium:
     @asyncio.coroutine
     def connect_broker(self):
         """ Connect to the broker server, and create its own result queue.
-        
+
         Every apium application gets it own result queue."""
         log.info('Connect to the broker {}'
                  ''.format(self.settings['broker_url']))
@@ -86,7 +85,7 @@ class Apium:
     def stop(self):
         yield from self.disconnect_broker()
         if self._worker is not None:
-           self._worker.stop()
+            self._worker.stop()
 
     def create_worker(self):
         """ Create the backend worker"""

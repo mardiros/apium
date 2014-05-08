@@ -6,7 +6,6 @@ from zope.interface import implementer
 
 import aioamqp
 from apium import registry
-from apium.exceptions import Timeout
 from apium.interfaces import IBroker, ISerializer
 
 log = logging.getLogger(__name__)
@@ -32,7 +31,7 @@ class Broker(object):
 
     @asyncio.coroutine
     def connect(self, url):
-        """ Connect to the broker server. 
+        """ Connect to the broker server.
         """
         self._protocol = yield from aioamqp.from_url(url)
         self._channel = yield from self._protocol.channel()
@@ -99,10 +98,8 @@ class Broker(object):
         try:
             log.info('Push result for task {}'.format(async_result.uuid))
             message = self._serializer.serialize(result)
-            yield from self._channel.publish(message,
-                                             exchange_name=async_result.result_queue,
-                                             routing_key=async_result.result_queue,
-                                             )
+            queue = async_result.result_queue
+            yield from self._channel.publish(message, queue, queue)
             return True
         except Exception:
             log.error('Unexpected error while pushing result', exc_info=True)
@@ -115,18 +112,17 @@ class Broker(object):
 
         @asyncio.coroutine
         def subscribe_queue():
-            
+
             for queue in self._app._working_queues:
                 log.info('basic consume {}'.format(queue))
                 consumer_tag = 'task-{}'.format(queue)
                 self._consumer_tags.append(consumer_tag)
                 yield from self._channel.basic_consume(queue, consumer_tag)
 
-
         if not self._start_consuming_task:
             self._start_consuming_task = True
             yield from subscribe_queue()
-            
+
             if not self._start_consuming:
                 self._start_consuming = True
                 future = asyncio.Future()
@@ -140,7 +136,7 @@ class Broker(object):
 
         @asyncio.coroutine
         def subscribe_queue():
-            
+
             queue = self._app.get_result_queue()
             log.info('basic consume {}'.format(queue))
             consumer_tag = 'result-{}'.format(queue)
@@ -150,14 +146,14 @@ class Broker(object):
         @asyncio.coroutine
         def get_result(future):
             while self._channel:
-                
+
                 if async_result.uuid in self._results:
                     future.set_result(self._results.pop(async_result.uuid))
                     break
                 yield from asyncio.sleep(0)
 
         if not self._start_consuming_result:
-            self._start_consuming_result= True
+            self._start_consuming_result = True
             yield from subscribe_queue()
 
             if not self._start_consuming:  # XXX lazy copy/paste
@@ -177,17 +173,20 @@ class Broker(object):
         while self._channel:
             try:
                 consumer_tag, delivery_tag, message = yield from self._channel.consume()
-                log.debug('Consumer {} received {} ({})'.format(consumer_tag, message, delivery_tag))
+                log.debug('Consumer {} received {} ({})'
+                          ''.format(consumer_tag, message, delivery_tag))
                 message = self._serializer.deserialize(message)
                 if consumer_tag.split('-', 1).pop(0) == 'task':
                     log.debug('Pushing task in the task queue')
                     yield from self._task_queue.put(message)
                 else:
                     self._results[message['uuid']] = message
-                    log.debug('Result for {} pushed in the result dict'.format(message['uuid']))
+                    log.debug('Result for {} pushed in the result dict'
+                              ''.format(message['uuid']))
 
                 # XXX ack_late
                 yield from self._channel.basic_client_ack(delivery_tag)
             except Exception:
-                log.error('Unexpected exception while reveicing task', exc_info=True)
+                log.error('Unexpected exception while reveicing task',
+                          exc_info=True)
         future.done()

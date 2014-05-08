@@ -1,11 +1,12 @@
 import logging
-import cPickle as pickle
+import pickle
 
 from zope.interface import implementer
 from apium.interfaces import ISerializer
 
 
 log = logging.getLogger(__name__)
+
 
 @implementer(ISerializer)
 class Serializer:
