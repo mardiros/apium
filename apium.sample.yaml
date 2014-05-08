@@ -2,21 +2,34 @@
 
 apium:
     broker:
-        url: amqp://localhost/
+        # actually only amqp is supported
+        url: amqp://guest:guest@localhost/
         # url: amqp://user:password@host:port/vhost
-    serializer: json
+    serializer: json  # json|pickle
+    # every process that use a apium application will have it's own result
+    # queue where every tasks result will be pushed
+    # the queue will be created at startup and deleted on shutdown
+    # By default, every result queue are prefixed with a & to get gathered
     result_exchange: '&{hostname}-{pid}'
     worker:
         type: process
         max_workers: 2
+    # By default, task queues are prefixed with a # to get gathered
     routes:
+        # every task that are not declared here will go to the default queue
         default_queue: '#master'
+        # if a task is going to be routed in a specific queue,
+        # declare the queue, add the task
         queues:
             '#other':
                 - apium.task.sample.add
+    # on startup, apium will load those module to get
+    # tasks in it loaded in the task registry
     import:
         - apium.task.sample
 
+
+# Logging configuration loaded via logging.dictConfig
 logging:
     version: 1
     disable_existing_loggers: True
@@ -37,8 +50,8 @@ logging:
                  - console
             propagate: no
 
-        pika:
-            level: INFO
+        aioamqp:
+            level: DEBUG
             handlers:
                  - console
             propagate: no

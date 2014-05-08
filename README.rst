@@ -38,4 +38,10 @@ start the apium server ::
 
 run the publisher ::
 
-    python test.py
+    python test.py apium.yaml
+
+
+.. note::
+
+    apium.yaml can be copy from apium.sample.yaml,
+    you should edit it to configure the access of your amqp
