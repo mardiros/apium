@@ -93,11 +93,11 @@ class Broker(object):
             return False
 
     @asyncio.coroutine
-    def push_result(self, task_request, result):
+    def push_result(self, task_request, task_response):
         """ Push the result in the created queue. """
         try:
             log.info('Push result for task {}'.format(task_request.uuid))
-            message = self._serializer.serialize(result)
+            message = self._serializer.serialize(task_response)
             queue = task_request.result_queue
             yield from self._channel.publish(message, queue, queue)
             return True

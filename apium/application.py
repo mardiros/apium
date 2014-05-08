@@ -109,11 +109,12 @@ class Apium:
         return result
 
     @asyncio.coroutine
-    def push_result(self, task_request, result):
+    def push_result(self, task_request, task_response):
         """ push the result in the created queue. """
-        log.info('Pushing the result..')
+        log.info('Pushing the result...')
         self._assert_broker()
-        result = yield from self._broker.push_result(task_request, result)
+        result = yield from self._broker.push_result(task_request,
+                                                     task_response)
         return result
 
     @asyncio.coroutine

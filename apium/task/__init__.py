@@ -1,3 +1,4 @@
+import sys
 import types
 import logging
 import asyncio
@@ -59,7 +60,7 @@ class TaskRegistry(object):
 
 
 class TaskRequest:
-    """ An Async Result implementation """
+    """ Represent a task instance to run """
 
     def __init__(self, application, task_name, task_args, task_kwargs,
                  uuid=None, ignore_result=None,
@@ -93,14 +94,6 @@ class TaskRequest:
         result = yield from self._app.pop_result(self, timeout)
         return result
 
-    @asyncio.coroutine
-    def set(self, result):
-        yield from self._app.push_result(self, result)
-
-    @asyncio.coroutine
-    def execute(self):
-        yield from self._app.push_task(self)
-
     def to_dict(self):
         return {'uuid': self.uuid,
                 'ignore_result': self.ignore_result,
@@ -112,6 +105,32 @@ class TaskRequest:
 
     def __str__(self):
         return '<TaskRequest {}>'.format(self.uuid)
+
+
+class TaskResponse:
+
+    def __init__(self, uuid, status, result=None,
+                 exception=None, tracback=None):
+        self.uuid = uuid
+        self.status = status
+        self.result = result
+        self.exception = exception
+        self.traceback = traceback
+
+    def to_dict(self):
+        ret = {'uuid': self.uuid,
+               'status': self.status,
+               }
+        if self.status == 'DONE':
+            ret['result'] = self.result
+        elif self.status == 'ERROR':
+            ret['exception'] = {'module': getattr(self.exception, '__module__',
+                                                  '__builtin__'),
+                                'class': exc.__class__.__name__,
+                                'args': exc.args,
+                                }
+            ret['traceback'] = traceback.format_exc().strip()
+        return ret
 
 
 class Task:
@@ -142,7 +161,7 @@ class Task:
         request = TaskRequest(self._app, self.name, args, kwargs,
                               ignore_result=self.ignore_result,
                               default_timeout=self.timeout)
-        yield from request.execute()
+        yield from self._app.push_task(request)
         if self.ignore_result:
             return
         result = yield from request.get()
@@ -169,18 +188,16 @@ def execute_task(task_name, uuid, args, kwargs):
     log.info('Executing task {}'.format(task_name))
     log.debug('with param {}, {}'.format(args, kwargs))
     try:
-        ret = {'status': 'DONE', 'uuid': uuid,
-               'result': task_to_run.excecute(*args, **kwargs)}
+        ret = TaskResponse(uuid, 'DONE',
+                           task_to_run.excecute(*args, **kwargs))
     except Exception as exc:
         log.error('Error {} while running task {} with param {}, {}'
                   ''.format(exc, task_name, args, kwargs))
-        ret = {'status': 'ERROR',
-               'exception': {'module': getattr(exc, '__module__',
-                                               '__builtin__'),
-                             'class': exc.__class__.__name__,
-                             'args': exc.args,
-                             },
-               'traceback': traceback.format_exc().strip()}
+        ret = TaskResponse(uuid, 'ERROR',
+                           exception=exc,
+                           traceback=sys.last_traceback)
+
+    ret = ret.to_dict()
     log.info('task {} executed'.format(task_name))
     log.debug('task returns {}'.format(ret))
     return ret

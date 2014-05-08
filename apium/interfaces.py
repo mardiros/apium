@@ -41,8 +41,8 @@ class IApium(Interface):
     def push_task(self, task_request):
         """ Create a queue wich is used to push the result. """
 
-    def push_result(self, task_request):
-        """ Push the result in the created queue. """
+    def push_result(self, task_request, task_response):
+        """ Push the result in the result_queue from the task_resquest """
 
     def pop_task(self):
         """ Pop a task to be processed for the given queues.
