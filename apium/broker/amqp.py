@@ -24,7 +24,6 @@ class Broker(object):
         self._start_consuming_task = False
         self._start_consuming_result = False
         self._results = {}
-        self._results_timedout = []  # XXX can take memory
         self._protocol = None
         self._channel = None
         self._consumer_tags = []
@@ -123,15 +122,6 @@ class Broker(object):
             self._consumer_tags.append(consumer_tag)
             yield from self._channel.basic_consume(queue, consumer_tag)
 
-        @asyncio.coroutine
-        def get_result(future):
-            while self._channel:
-
-                if task_request.uuid in self._results:
-                    future.set_result(self._results.pop(task_request.uuid))
-                    break
-                yield from asyncio.sleep(0)
-
         if not self._start_consuming_result:
             self._start_consuming_result = True
             yield from subscribe_queue()
@@ -139,8 +129,13 @@ class Broker(object):
 
         future = asyncio.Future()
         loop = asyncio.get_event_loop()
-        loop.call_soon(asyncio.Task(get_result(future)))
-        result = yield from asyncio.wait_for(future, timeout)
+        self._results[task_request.uuid] = future
+        try:
+            result = yield from asyncio.wait_for(future, timeout)
+        except TimeoutError:
+            future.cancel()
+            del self._results[task_request.uuid]
+            raise
         return result
 
     def _start_consume(self):
@@ -153,7 +148,9 @@ class Broker(object):
     def _consume_queues(self):
         while self._channel:
             try:
-                consumer_tag, delivery_tag, message = yield from self._channel.consume()
+                (consumer_tag,
+                 delivery_tag,
+                 message) = yield from self._channel.consume()
                 log.debug('Consumer {} received {} ({})'
                           ''.format(consumer_tag, message, delivery_tag))
                 message = self._serializer.deserialize(message)
@@ -161,9 +158,12 @@ class Broker(object):
                     log.debug('Pushing task in the task queue')
                     yield from self._task_queue.put(message)
                 else:
-                    self._results[message['uuid']] = message
-                    log.debug('Result for {} pushed in the result dict'
-                              ''.format(message['uuid']))
+                    try:
+                        self._results[message['uuid']].set_result(message)
+                        log.debug('Result for {} pushed in the result dict'
+                                  ''.format(message['uuid']))
+                    except KeyError:
+                        log.warn('Result arrived to late')
 
                 # XXX ack_late
                 yield from self._channel.basic_client_ack(delivery_tag)
