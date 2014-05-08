@@ -106,16 +106,12 @@ class Broker(object):
         if not self._start_consuming_task:
             self._start_consuming_task = True
             yield from subscribe_queue()
-
-            if not self._start_consuming:
-                self._start_consuming = True
-                future = asyncio.Future()
-                loop = asyncio.get_event_loop()
-                loop.call_soon(asyncio.Task(self.consume_queues(future)))
+            self._start_consume()
 
         task = yield from self._task_queue.get()
         return task
 
+    @asyncio.coroutine
     def pop_result(self, task_request, timeout=None):
 
         @asyncio.coroutine
@@ -139,12 +135,7 @@ class Broker(object):
         if not self._start_consuming_result:
             self._start_consuming_result = True
             yield from subscribe_queue()
-
-            if not self._start_consuming:  # XXX lazy copy/paste
-                self._start_consuming = True
-                future = asyncio.Future()
-                loop = asyncio.get_event_loop()
-                loop.call_soon(asyncio.Task(self.consume_queues(future)))
+            self._start_consume()
 
         future = asyncio.Future()
         loop = asyncio.get_event_loop()
@@ -152,8 +143,14 @@ class Broker(object):
         result = yield from asyncio.wait_for(future, timeout)
         return result
 
+    def _start_consume(self):
+        if not self._start_consuming:
+            self._start_consuming = True
+            loop = asyncio.get_event_loop()
+            loop.call_soon(asyncio.Task(self._consume_queues()))
+
     @asyncio.coroutine
-    def consume_queues(self, future):
+    def _consume_queues(self):
         while self._channel:
             try:
                 consumer_tag, delivery_tag, message = yield from self._channel.consume()
@@ -173,4 +170,3 @@ class Broker(object):
             except Exception:
                 log.error('Unexpected exception while reveicing task',
                           exc_info=True)
-        future.done()
