@@ -93,18 +93,9 @@ class Broker(object):
         """ Pop a task to be processed for the given queues.
         If no queues are passed, all queues will be tracked. """
 
-        @asyncio.coroutine
-        def subscribe_queue():
-
-            for queue in self._app._working_queues:
-                log.info('basic consume {}'.format(queue))
-                consumer_tag = 'task-{}'.format(queue)
-                self._consumer_tags.append(consumer_tag)
-                yield from self._channel.basic_consume(queue, consumer_tag)
-
         if not self._start_consuming_task:
             self._start_consuming_task = True
-            yield from subscribe_queue()
+            yield from self._subscribe_task_queues()
             self._start_consume()
 
         task = yield from self._task_queue.get()
@@ -113,18 +104,9 @@ class Broker(object):
     @asyncio.coroutine
     def pop_result(self, task_request, timeout=None):
 
-        @asyncio.coroutine
-        def subscribe_queue():
-
-            queue = self._app.get_result_queue()
-            log.info('basic consume {}'.format(queue))
-            consumer_tag = 'result-{}'.format(queue)
-            self._consumer_tags.append(consumer_tag)
-            yield from self._channel.basic_consume(queue, consumer_tag)
-
         if not self._start_consuming_result:
             self._start_consuming_result = True
-            yield from subscribe_queue()
+            yield from self._subscribe_result_queue()
             self._start_consume()
 
         future = asyncio.Future()
@@ -145,7 +127,26 @@ class Broker(object):
             loop.call_soon(asyncio.Task(self._consume_queues()))
 
     @asyncio.coroutine
+    def _subscribe_result_queue(self):
+
+        queue = self._app.get_result_queue()
+        log.info('basic consume {}'.format(queue))
+        consumer_tag = 'result-{}'.format(queue)
+        self._consumer_tags.append(consumer_tag)
+        yield from self._channel.basic_consume(queue, consumer_tag)
+
+    @asyncio.coroutine
+    def _subscribe_task_queues(self):
+
+        for queue in self._app._working_queues:
+            log.info('basic consume {}'.format(queue))
+            consumer_tag = 'task-{}'.format(queue)
+            self._consumer_tags.append(consumer_tag)
+            yield from self._channel.basic_consume(queue, consumer_tag)
+
+    @asyncio.coroutine
     def _consume_queues(self):
+
         while self._channel:
             try:
                 (consumer_tag,
@@ -167,6 +168,16 @@ class Broker(object):
 
                 # XXX ack_late
                 yield from self._channel.basic_client_ack(delivery_tag)
+            except aioamqp.ClosedConnection:
+
+                # reconnect the channel
+                self._channel = yield from self._protocol.channel()
+                if self._start_consuming_task:
+                    yield from self._subscribe_task_queues()
+                if self._start_consuming_result:
+                    yield from self._subscribe_result_queue()
+
             except Exception:
                 log.error('Unexpected exception while reveicing task',
                           exc_info=True)
+
