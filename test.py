@@ -36,10 +36,7 @@ def routine(future):
             yield from app.disconnect_broker()
         except Exception as exc:
             traceback.print_exc()
-        future.done()
-        yield from asyncio.sleep(.2)
-        import sys
-        sys.exit(0)
+        future.set_result(None)
 
 
 def main(argv=sys.argv):
@@ -49,6 +46,7 @@ def main(argv=sys.argv):
     loop = asyncio.get_event_loop()
     loop.call_soon(asyncio.Task(routine(future)))
     loop.run_until_complete(future)
+    loop.stop()
 
 
 if __name__ == '__main__':
