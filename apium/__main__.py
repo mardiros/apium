@@ -16,7 +16,10 @@ def start_worker(queues):
     try:
         log.info('Starting Apium Worker')
         app = get_application()
-        yield from app.connect_broker()
+        connected = yield from app.connect_broker()
+        if not connected:
+            log.error("Can't connect to the broker, failed to start")
+            sys.exit(1)
 
         log.info('Apium application connected')
         queues = queues.split(',') if queues else app._working_queues

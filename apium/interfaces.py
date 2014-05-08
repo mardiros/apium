@@ -82,6 +82,8 @@ class IApium(Interface):
 class IBroker(Interface):
     """ Mediator for tasks treatment, connect to a broker. """
 
+    connected = Attribute(""" read only boolean status of the connection """)
+
     def __init__(self, application):
         """ Build the broker for the given application """
 

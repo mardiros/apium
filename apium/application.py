@@ -77,7 +77,8 @@ class Apium:
     @asyncio.coroutine
     def disconnect_broker(self):
         """ Disconnect to the broker server. """
-        self._assert_broker()
+        if not self._broker or not self._broker.connected:
+            return
         yield from self._broker.delete_queue(self.get_result_queue())
         yield from self._broker.disconnect()
         self._broker = None

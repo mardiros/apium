@@ -28,6 +28,10 @@ class Broker(object):
         self._channel = None
         self._consumer_tags = []
 
+    @property
+    def connected(self):
+        return self._protocol is not None
+
     @asyncio.coroutine
     def connect(self, url):
         """ Connect to the broker server.
