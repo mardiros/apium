@@ -18,8 +18,8 @@ class Broker(object):
     def __init__(self, application):
         """ Build the broker for the given application """
         self._app = application
-        self._serializer = registry.get(ISerializer)()
         self._task_queue = asyncio.Queue(maxsize=1)
+        self._serializer = registry.get(ISerializer)()
         self._start_consuming = False
         self._start_consuming_task = False
         self._start_consuming_result = False
@@ -78,31 +78,15 @@ class Broker(object):
         yield from asyncio.sleep(2)  # XXX wait the queue is deleted
 
     @asyncio.coroutine
-    def push_task(self, task_request):
-        """ Push the async result in the queue. """
+    def publish_message(self, message, queue):
+        """ publis a message in a queue. """
         try:
-            log.info('Pushing task {} [{}]'
-                     ''.format(task_request.task_name, task_request.uuid))
-            message = self._serializer.serialize(task_request.to_dict())
-            queue = self._app.get_queue(task_request.task_name)
-            yield from self._channel.publish(message, exchange_name=queue,
+            yield from self._channel.publish(message,
+                                             exchange_name=queue,
                                              routing_key=queue)
             return True
         except Exception:
-            log.error('Unexpected error while pushing task', exc_info=True)
-            return False
-
-    @asyncio.coroutine
-    def push_result(self, task_request, task_response):
-        """ Push the result in the created queue. """
-        try:
-            log.info('Push result for task {}'.format(task_request.uuid))
-            message = self._serializer.serialize(task_response)
-            queue = task_request.result_queue
-            yield from self._channel.publish(message, queue, queue)
-            return True
-        except Exception:
-            log.error('Unexpected error while pushing result', exc_info=True)
+            log.error('Unexpected error while pushing message', exc_info=True)
             return False
 
     @asyncio.coroutine

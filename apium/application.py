@@ -10,7 +10,7 @@ import importlib
 from zope.interface import implementer
 
 from . import registry
-from .interfaces import IApium, IWorker, IBroker
+from .interfaces import IApium, IWorker, IBroker, ISerializer
 from .task import TaskRegistry, Task
 
 log = logging.getLogger(__name__)
@@ -27,6 +27,7 @@ class Apium:
         self.settings = {'broker_url': 'amqp://localhost/',
                          'max_workers': 4,
                          'result_queue_format': '&apium-{hostname}-{pid}'}
+        self._serializer = registry.get(ISerializer)()
         self._task_registry = TaskRegistry()
         self._working_queues = []
         self._result_queue = None
@@ -105,7 +106,11 @@ class Apium:
     def push_task(self, task_request):
         """ Create a queue wich is used to push the result. """
         self._assert_broker()
-        result = yield from self._broker.push_task(task_request)
+        log.info('Pushing task {} [{}]'
+                 ''.format(task_request.task_name, task_request.uuid))
+        message = self._serializer.serialize(task_request.to_dict())
+        queue = self.get_queue(task_request.task_name)
+        result = yield from self._broker.publish_message(message, queue)
         return result
 
     @asyncio.coroutine
@@ -113,8 +118,10 @@ class Apium:
         """ push the result in the created queue. """
         log.info('Pushing the result...')
         self._assert_broker()
-        result = yield from self._broker.push_result(task_request,
-                                                     task_response)
+        log.info('Push result for task {}'.format(task_request.uuid))
+        message = self._serializer.serialize(task_response)
+        queue = task_request.result_queue
+        result = yield from self._broker.publish_message(message, queue)
         return result
 
     @asyncio.coroutine

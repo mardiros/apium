@@ -97,15 +97,10 @@ class IBroker(Interface):
     def delete_queue(self, queue):
         """ delete working queues """
 
-    def push_task(self, task_request):
-        """ Push the async result in the queue. """
-
-    def push_result(self, task_request):
-        """ Push the result in the created queue. """
-
-    def pop_task(self):
-        """ Pop a task to be processed for the given queues.
-         If no queues are passed, all queues will be tracked. """
+    def publish_message(self, message, queue):
+        """ Publish a message in a queue,
+        this is used to pulish task and result.
+        """
 
     def pop_result(self, task_request, timeout=None):
         """ Pop the result for the async result,
