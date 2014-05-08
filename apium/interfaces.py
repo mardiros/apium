@@ -38,17 +38,17 @@ class IApium(Interface):
     def create_worker(self):
         """ Create the worker that will process the given queues """
 
-    def push_task(self, async_result):
+    def push_task(self, task_request):
         """ Create a queue wich is used to push the result. """
 
-    def push_result(self, async_result):
+    def push_result(self, task_request):
         """ Push the result in the created queue. """
 
     def pop_task(self):
         """ Pop a task to be processed for the given queues.
          If no queues are passed, all queues will be tracked. """
 
-    def pop_result(self, async_result):
+    def pop_result(self, task_request):
         """ Lock until the result is ready, then return the result """
 
     def task(self, *args, **task_options):
@@ -97,17 +97,17 @@ class IBroker(Interface):
     def delete_queue(self, queue):
         """ delete working queues """
 
-    def push_task(self, async_result):
+    def push_task(self, task_request):
         """ Push the async result in the queue. """
 
-    def push_result(self, async_result):
+    def push_result(self, task_request):
         """ Push the result in the created queue. """
 
     def pop_task(self):
         """ Pop a task to be processed for the given queues.
          If no queues are passed, all queues will be tracked. """
 
-    def pop_result(self, async_result, timeout=None):
+    def pop_result(self, task_request, timeout=None):
         """ Pop the result for the async result,
         if a timeout is given and is attempt, raise a Timeout error"""
 
@@ -119,7 +119,7 @@ class IWorker(Interface):
     name = Attribute("Name of the worker")
 
     def __init__(self, size, max_tasks_per_child=None):
-        """ Create the worker with size parallel "process" 
+        """ Create the worker with size parallel "process"
 
         process is an implementation details. it can be process, thread,
         greenlet...
@@ -149,6 +149,6 @@ class ISerializer(Interface):
     def deserialize(self, bytes):
         """
         Take bytes and return an ITask
-        
+
         :raises: ValueError in case bytes cannot be deserialized
         """

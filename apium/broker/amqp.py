@@ -78,13 +78,13 @@ class Broker(object):
         yield from asyncio.sleep(2)  # XXX wait the queue is deleted
 
     @asyncio.coroutine
-    def push_task(self, async_result):
+    def push_task(self, task_request):
         """ Push the async result in the queue. """
         try:
             log.info('Pushing task {} [{}]'
-                     ''.format(async_result.task_name, async_result.uuid))
-            message = self._serializer.serialize(async_result.to_dict())
-            queue = self._app.get_queue(async_result.task_name)
+                     ''.format(task_request.task_name, task_request.uuid))
+            message = self._serializer.serialize(task_request.to_dict())
+            queue = self._app.get_queue(task_request.task_name)
             yield from self._channel.publish(message, exchange_name=queue,
                                              routing_key=queue)
             return True
@@ -93,12 +93,12 @@ class Broker(object):
             return False
 
     @asyncio.coroutine
-    def push_result(self, async_result, result):
+    def push_result(self, task_request, result):
         """ Push the result in the created queue. """
         try:
-            log.info('Push result for task {}'.format(async_result.uuid))
+            log.info('Push result for task {}'.format(task_request.uuid))
             message = self._serializer.serialize(result)
-            queue = async_result.result_queue
+            queue = task_request.result_queue
             yield from self._channel.publish(message, queue, queue)
             return True
         except Exception:
@@ -132,7 +132,7 @@ class Broker(object):
         task = yield from self._task_queue.get()
         return task
 
-    def pop_result(self, async_result, timeout=None):
+    def pop_result(self, task_request, timeout=None):
 
         @asyncio.coroutine
         def subscribe_queue():
@@ -147,8 +147,8 @@ class Broker(object):
         def get_result(future):
             while self._channel:
 
-                if async_result.uuid in self._results:
-                    future.set_result(self._results.pop(async_result.uuid))
+                if task_request.uuid in self._results:
+                    future.set_result(self._results.pop(task_request.uuid))
                     break
                 yield from asyncio.sleep(0)
 

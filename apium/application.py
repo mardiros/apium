@@ -102,18 +102,18 @@ class Apium:
         yield from self._broker.create_queue(queue)
 
     @asyncio.coroutine
-    def push_task(self, async_result):
+    def push_task(self, task_request):
         """ Create a queue wich is used to push the result. """
         self._assert_broker()
-        result = yield from self._broker.push_task(async_result)
+        result = yield from self._broker.push_task(task_request)
         return result
 
     @asyncio.coroutine
-    def push_result(self, async_result, result):
+    def push_result(self, task_request, result):
         """ push the result in the created queue. """
         log.info('Pushing the result..')
         self._assert_broker()
-        result = yield from self._broker.push_result(async_result, result)
+        result = yield from self._broker.push_result(task_request, result)
         return result
 
     @asyncio.coroutine
@@ -125,15 +125,15 @@ class Apium:
         return task
 
     @asyncio.coroutine
-    def pop_result(self, async_result, timeout=0):
+    def pop_result(self, task_request, timeout=0):
         """ lock until the result is ready """
         self._assert_broker()
-        ret = yield from self._broker.pop_result(async_result, timeout)
+        ret = yield from self._broker.pop_result(task_request, timeout)
         if ret['status'] == 'ERROR':
             log.error('Error received from task {} with param {}, {}'
-                      ''.format(async_result.task_name,
-                                async_result.task_args,
-                                async_result.task_kwargs))
+                      ''.format(task_request.task_name,
+                                task_request.task_args,
+                                task_request.task_kwargs))
             log.error('Original {}'.format(ret['traceback']))
             exc = ret['exception']
             exc = getattr(importlib.import_module(exc['module']), exc['class'])

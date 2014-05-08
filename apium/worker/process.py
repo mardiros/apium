@@ -5,7 +5,7 @@ from concurrent.futures import ProcessPoolExecutor
 from zope.interface import implementer
 from apium.interfaces import IWorker
 from apium.application import registry
-from apium.task import execute_task, AsyncResult
+from apium.task import execute_task, TaskRequest
 
 log = logging.getLogger(__name__)
 
@@ -59,7 +59,7 @@ class Worker:
     def process(self, uuid, result_queue, task_name, task_args, task_kwargs,
                 ignore_result):
         """ Process the task """
-        async = AsyncResult(self._app, task_name, task_args, task_kwargs,
+        async = TaskRequest(self._app, task_name, task_args, task_kwargs,
                             uuid=uuid, ignore_result=ignore_result,
                             result_queue=result_queue)
         loop = asyncio.get_event_loop()

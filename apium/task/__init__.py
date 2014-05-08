@@ -58,7 +58,7 @@ class TaskRegistry(object):
         return self.default_queue
 
 
-class AsyncResult:
+class TaskRequest:
     """ An Async Result implementation """
 
     def __init__(self, application, task_name, task_args, task_kwargs,
@@ -81,7 +81,7 @@ class AsyncResult:
         case some callback have been attached.
 
         :param timeout: timeout for the tasks. if None, the default timeout
-            of the AsyncResult will be used. The default timeout is the
+            of the TaskRequest will be used. The default timeout is the
             timeout attribute of the tasks
         :type timeout: float
 
@@ -111,7 +111,7 @@ class AsyncResult:
                 }
 
     def __str__(self):
-        return '<AsyncResult {}>'.format(self.uuid)
+        return '<TaskRequest {}>'.format(self.uuid)
 
 
 class Task:
@@ -139,13 +139,13 @@ class Task:
 
     @asyncio.coroutine
     def __call__(self, *args, **kwargs):
-        async_result = AsyncResult(self._app, self.name, args, kwargs,
-                                   ignore_result=self.ignore_result,
-                                   default_timeout=self.timeout)
-        yield from async_result.execute()
+        request = TaskRequest(self._app, self.name, args, kwargs,
+                              ignore_result=self.ignore_result,
+                              default_timeout=self.timeout)
+        yield from request.execute()
         if self.ignore_result:
             return
-        result = yield from async_result.get()
+        result = yield from request.get()
         return result
 
     def excecute(self, *args, **kwargs):
