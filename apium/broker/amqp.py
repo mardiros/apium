@@ -50,11 +50,7 @@ class Broker(object):
         log.info('closing channel')
         yield from self._channel.close()
         self._channel = None
-        # XXX stopping protocol should be simpler and should not log traceback
-        yield from self._protocol.client_close()
-        yield from self._protocol.client_close_ok()
-        #yield from self._protocol.stop()
-        yield from self._protocol.close()
+        yield from self._protocol.stop()
         self._protocol = None
 
     @asyncio.coroutine
@@ -184,4 +180,3 @@ class Broker(object):
             except Exception:
                 log.error('Unexpected exception while reveicing task',
                           exc_info=True)
-
