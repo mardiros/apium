@@ -7,7 +7,7 @@ Getting Started
 Apium is a job execution for asyncio inspired by Celery,
 but for the new python 3.4 asyncio minimal framework.
 
-It is actually experimental.
+It is currently experimental.
 
 Requirements
 ------------
