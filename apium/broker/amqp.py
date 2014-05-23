@@ -5,6 +5,9 @@ import uuid
 from zope.interface import implementer
 
 import aioamqp
+from aioamqp.exceptions import (AmqpClosedConnection,
+                                ChannelClosed,
+                                ConsumerCancelled)
 from apium import registry
 from apium.interfaces import IBroker, ISerializer
 
@@ -46,11 +49,10 @@ class Broker(object):
         for tag in self._consumer_tags:
             yield from self._channel.basic_cancel(tag)
 
-        yield from asyncio.sleep(1)
         log.info('closing channel')
         yield from self._channel.close()
         self._channel = None
-        yield from self._protocol.stop()
+        self._protocol.stop()
         self._protocol = None
 
     @asyncio.coroutine
@@ -71,14 +73,19 @@ class Broker(object):
     def delete_queue(self, queue):
         """ delete working queues """
         log.info('Deleting echange {}'.format(queue))
-        yield from self._channel.exchange_delete(queue)
+        try:
+            yield from self._channel.exchange_delete(queue, no_wait=False)
+        except Exception:
+            log.exception()
         log.info('Deleting queue {}'.format(queue))
-        yield from self._channel.queue_delete(queue)
-        yield from asyncio.sleep(2)  # XXX wait the queue is deleted
+        try:
+            yield from self._channel.queue_delete(queue, no_wait=False)
+        except Exception:
+            log.exception()
 
     @asyncio.coroutine
     def publish_message(self, message, queue):
-        """ publis a message in a queue. """
+        """ publish a message in a queue. """
         try:
             yield from self._channel.publish(message,
                                              exchange_name=queue,
@@ -92,13 +99,15 @@ class Broker(object):
     def pop_task(self):
         """ Pop a task to be processed for the given queues.
         If no queues are passed, all queues will be tracked. """
+        try:
+            if not self._start_consuming_task:
+                self._start_consuming_task = True
+                yield from self._subscribe_task_queues()
 
-        if not self._start_consuming_task:
-            self._start_consuming_task = True
-            yield from self._subscribe_task_queues()
-            self._start_consume()
-
-        task = yield from self._task_queue.get()
+            task = yield from self._task_queue.get()
+        except Exception:
+            log.error('Unexpected error while poping task', exc_info=True)
+            raise
         return task
 
     @asyncio.coroutine
@@ -107,7 +116,6 @@ class Broker(object):
         if not self._start_consuming_result:
             self._start_consuming_result = True
             yield from self._subscribe_result_queue()
-            self._start_consume()
 
         future = asyncio.Future()
         loop = asyncio.get_event_loop()
@@ -120,12 +128,6 @@ class Broker(object):
             raise
         return result
 
-    def _start_consume(self):
-        if not self._start_consuming:
-            self._start_consuming = True
-            loop = asyncio.get_event_loop()
-            loop.call_soon(asyncio.Task(self._consume_queues()))
-
     @asyncio.coroutine
     def _subscribe_result_queue(self):
 
@@ -133,7 +135,10 @@ class Broker(object):
         log.info('basic consume {}'.format(queue))
         consumer_tag = 'result-{}'.format(queue)
         self._consumer_tags.append(consumer_tag)
-        yield from self._channel.basic_consume(queue, consumer_tag)
+        yield from self._channel.basic_consume(queue, consumer_tag,
+                                               no_wait=False)
+        loop = asyncio.get_event_loop()
+        loop.call_soon(asyncio.Task(self._consume_queue(consumer_tag)))
 
     @asyncio.coroutine
     def _subscribe_task_queues(self):
@@ -142,16 +147,19 @@ class Broker(object):
             log.info('basic consume {}'.format(queue))
             consumer_tag = 'task-{}'.format(queue)
             self._consumer_tags.append(consumer_tag)
-            yield from self._channel.basic_consume(queue, consumer_tag)
+            yield from self._channel.basic_consume(queue, consumer_tag,
+                                                   no_wait=False)
+            loop = asyncio.get_event_loop()
+            loop.call_soon(asyncio.Task(self._consume_queue(consumer_tag)))
 
     @asyncio.coroutine
-    def _consume_queues(self):
+    def _consume_queue(self, consumer_tag):
 
         while self._channel:
             try:
                 (consumer_tag,
                  delivery_tag,
-                 message) = yield from self._channel.consume()
+                 message) = yield from self._channel.consume(consumer_tag)
                 log.debug('Consumer {} received {} ({})'
                           ''.format(consumer_tag, message, delivery_tag))
                 message = self._serializer.deserialize(message)
@@ -168,7 +176,9 @@ class Broker(object):
 
                 # XXX ack_late
                 yield from self._channel.basic_client_ack(delivery_tag)
-            except aioamqp.ClosedConnection:
+
+            except ConsumerCancelled as exc:
+                log.warning('Consumer has been cancelled, open a new channel')
 
                 # reconnect the channel
                 self._channel = yield from self._protocol.channel()
@@ -177,6 +187,9 @@ class Broker(object):
                 if self._start_consuming_result:
                     yield from self._subscribe_result_queue()
 
+            except ChannelClosed as exc:
+                log.info('Channel closed, stop consuming')
+                break
             except Exception:
-                log.error('Unexpected exception while reveicing task',
+                log.error('Unexpected exception while reveicing message',
                           exc_info=True)
