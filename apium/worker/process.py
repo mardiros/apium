@@ -41,6 +41,7 @@ class Worker:
         log.info('Worker is ready to accept tasks')
         while True:
             try:
+                log.debug('Worker wait for a new task')
                 task_dict = yield from self._app.pop_task()
             except Exception:
                 log.error('Unexpected error while retrieving task',
