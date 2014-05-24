@@ -6,6 +6,7 @@ import importlib
 import logging
 from logging.config import dictConfig
 
+import venusian
 from yaml import load
 
 try:
@@ -116,5 +117,6 @@ class Configurator(object):
         app.settings.update(self.settings)
         app.configure_queues(**self.routes)
 
+        scanner = venusian.Scanner(app=app)
         for mod in self.task_import:
-            importlib.import_module(mod)
+            scanner.scan(importlib.import_module(mod))

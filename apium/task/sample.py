@@ -6,27 +6,26 @@ Exemple of tasks declaration.
 
 import time
 from apium import registry
+from apium.task import task
 
-app = registry.get_application()
 
-
-@app.task
+@task()
 def add(a, b):
     return a + b
 
 
-@app.task()
+@task()
 def multiply(a, b):
     return a * b
 
 
-@app.task
+@task()
 class divide:
     def __call__(self, a, b):
         return a / b
 
 
-@app.task(name='apium.task.sample.noop')
+@task(name='noop')
 class Noop:
     def __call__(self, sleep_time):
         time.sleep(sleep_time)

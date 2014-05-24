@@ -2,9 +2,13 @@ import sys
 import types
 import logging
 import asyncio
+import inspect
 import traceback
+import importlib
 from collections import defaultdict
 from uuid import uuid4
+
+import venusian
 
 from .. import registry
 
@@ -32,6 +36,9 @@ class TaskRegistry(object):
                 self.queues[self.default_queue].append(task.name)
 
         self._registry[task.name] = task
+        # Then install the decorator that patch the decorated method
+        task.install()
+
 
     def get(self, task_name):
         """
@@ -133,21 +140,36 @@ class Task:
     queue = None
     timeout = None
 
-    @property
-    def name(self):
-        if not self._name:
-            self._name = '{}.{}'.format(self.method.__module__,
-                                        self.method.__name__)
-        return self._name
-
     def __init__(self, application, method, **kwargs):
         self._app = application
+
+        if 'name' in kwargs:
+            self.name = kwargs['name']
+        else:
+            self.name = '{}.{}'.format(method.__module__,
+                                       method.__name__)
+
+        self._origin = method
+        if inspect.isclass(method):
+            method = method()
+
+        if (not asyncio.iscoroutinefunction(method) and
+            (isinstance(method, asyncio.Future) or
+             inspect.isgenerator(method)
+             )):
+            method = asyncio.coroutine(method)
+
         self.method = method
         if 'ignore_result' in kwargs:
             self.ignore_result = kwargs['ignore_result']
         if 'timeout' in kwargs:
             self.timeout = kwargs['timeout']
         self._name = kwargs.get('name', None)
+
+    def install(self):
+        """ Install the decorator """
+        setattr(importlib.import_module(self._origin.__module__),
+                self._origin.__name__, self)
 
     @asyncio.coroutine
     def __call__(self, *args, **kwargs):
@@ -166,12 +188,9 @@ class Task:
         result = yield from request.get(timeout)
         return result
 
-    def excecute(self, *args, **kwargs):
+    def execute(self, *args, **kwargs):
         """ execute the wrapped method """
-        return (self.method(*args, **kwargs)  # function decorated
-                if isinstance(self.method, types.FunctionType)
-                else self.method()(*args, **kwargs)  # class decorated
-                )
+        return self.method(*args, **kwargs)
 
     def __str__(self):
         return '<task {}>'.format(self.name)
@@ -188,7 +207,7 @@ def execute_task(task_name, uuid, args, kwargs):
     log.debug('with param {}, {}'.format(args, kwargs))
     try:
         ret = TaskResponse(uuid, 'DONE',
-                           task_to_run.excecute(*args, **kwargs))
+                           task_to_run.execute(*args, **kwargs))
     except Exception as exc:
         log.error('Error {} while running task {} with param {}, {}'
                   ''.format(exc, task_name, args, kwargs))
@@ -200,3 +219,22 @@ def execute_task(task_name, uuid, args, kwargs):
     log.info('task {} executed'.format(task_name))
     log.debug('task returns {}'.format(ret))
     return ret
+
+
+class task:
+    """
+    Transform a class or a function to a coroutine, attach it to
+    be used via the apium application.
+    """
+    def __init__(self, **task_options):
+        self.task_options = task_options
+
+    def __call__(self, wrapped):
+
+        def callback(scanner, name, ob):
+            task_ = Task(scanner.app, wrapped, **self.task_options)
+            log.info('Register task {}'.format(task_.name))
+            scanner.app.register_task(task_)
+
+        venusian.attach(wrapped, callback, category='apium')
+        return wrapped

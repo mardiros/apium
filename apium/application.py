@@ -2,11 +2,13 @@
 Apium application container
 """
 import os
+import inspect
 import socket
 import asyncio
 import types
 import logging
 import importlib
+
 from zope.interface import implementer
 
 from . import registry
@@ -41,6 +43,9 @@ class Apium:
 
     def configure_queues(self, default_queue='#master', queues=None):
         self._task_registry.configure_queues(default_queue, queues)
+
+    def register_task(self, task_):
+        return self._task_registry.register(task_)
 
     def get_task(self, task_name):
         return self._task_registry.get(task_name)
@@ -148,22 +153,3 @@ class Apium:
             exc = getattr(importlib.import_module(exc['module']), exc['class'])
             raise exc(*ret['exception']['args'])
         return ret['result']
-
-    def task(self, *args, **task_options):
-        """ Decorator that transform a function to an async task """
-
-        def wrapper(func):
-            task = Task(self, func, **task_options)
-            log.info('Register task {}'.format(task.name))
-            self._task_registry.register(task)
-            return task
-
-        # in case it is called @task
-        if args and isinstance(args[0], types.FunctionType):
-            return wrapper(args[0])
-
-        if args and isinstance(args[0], object):
-            return wrapper(args[0])
-
-        # in case it is called @task()
-        return wrapper

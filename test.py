@@ -5,6 +5,8 @@ import asyncio
 from apium.registry import get_application
 from apium.config import Configurator
 
+from apium.task import sample
+
 
 @asyncio.coroutine
 def routine(future):
@@ -15,20 +17,18 @@ def routine(future):
             print('Cannot connect to the broker')
             return
 
-        from apium.task.sample import add, multiply, divide, Noop as noop
 
-        result = yield from add(1, 2)
+        result = yield from sample.add(1, 2)
         print("1 + 2 =", result)
 
-        result = yield from multiply(2, 16)
+        result = yield from sample.multiply(2, 16)
         print("2 * 16 = ", result)
 
-        result = yield from divide(8, 2)
+        result = yield from sample.divide(8, 2)
         print("8 / 2 = ", result)
 
-        result = yield from noop(2, task_options={'timeout': 1})
-        print (result)
-
+        #result = yield from noop(2, task_options={'timeout': 1})
+        #print (result)
     except Exception as exc:
         traceback.print_exc()
     finally:
