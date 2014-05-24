@@ -177,8 +177,8 @@ class Broker(object):
                 # XXX ack_late
                 yield from self._channel.basic_client_ack(delivery_tag)
 
-            except ConsumerCancelled as exc:
-                log.warning('Consumer has been cancelled, open a new channel')
+            except (ChannelClosed, ConsumerCancelled) as exc:
+                log.warning('Consumer has been closed, open a new channel')
 
                 # reconnect the channel
                 self._channel = yield from self._protocol.channel()
@@ -187,9 +187,6 @@ class Broker(object):
                 if self._start_consuming_result:
                     yield from self._subscribe_result_queue()
 
-            except ChannelClosed as exc:
-                log.info('Channel closed, stop consuming')
-                break
             except Exception:
                 log.error('Unexpected exception while reveicing message',
                           exc_info=True)
