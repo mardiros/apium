@@ -3,8 +3,8 @@ Exemple of tasks declaration.
 
 """
 
-
 import time
+import asyncio
 from apium import registry
 from apium.task import task
 
@@ -26,6 +26,14 @@ class divide:
 
 
 @task(name='noop')
-class Noop:
+class noop:
     def __call__(self, sleep_time):
         time.sleep(sleep_time)
+        return sleep_time
+
+
+@task(name='aionoop')
+class aionoop:
+    def __call__(self, sleep_time):
+        yield from asyncio.sleep(sleep_time)
+        return sleep_time

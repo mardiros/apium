@@ -189,8 +189,34 @@ class Task:
         return result
 
     def execute(self, *args, **kwargs):
-        """ execute the wrapped method """
-        return self.method(*args, **kwargs)
+        """ Execute the wrapped method.
+        This call must run in a process of the apium worker.
+        If the wrapped method is a coroutine, it will spawn a new
+        event loop in the process executor to wait untile the coroutine
+        is done.
+        """
+        ret = self.method(*args, **kwargs)
+        if isinstance(ret, asyncio.Future) or inspect.isgenerator(ret):
+            # In that case,
+            # run the asyncio coroutine in a dedicated event loop
+            # of the process pool executure
+
+            @asyncio.coroutine
+            def routine(method, future):
+                ret = yield from method
+                future.set_result(ret)
+
+            future = asyncio.Future()
+            old_loop = asyncio.get_event_loop()
+            try:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                loop.run_until_complete(asyncio.Task(routine(ret, future)))
+                ret = future.result()
+            finally:
+                asyncio.set_event_loop(old_loop)
+
+        return ret
 
     def __str__(self):
         return '<task {}>'.format(self.name)

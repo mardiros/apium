@@ -27,8 +27,10 @@ def routine(future):
         result = yield from sample.divide(8, 2)
         print("8 / 2 = ", result)
 
-        #result = yield from noop(2, task_options={'timeout': 1})
-        #print (result)
+        result = yield from sample.noop(1, task_options={'timeout': 2})
+        print ("wait for", result, "seconds")
+        result = yield from sample.aionoop(2, task_options={'timeout': 1})
+        print (result)
     except Exception as exc:
         traceback.print_exc()
     finally:
