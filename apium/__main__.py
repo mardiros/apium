@@ -78,9 +78,9 @@ def main(args=sys.argv):
         loop.add_signal_handler(getattr(signal, signame),
                                 lambda: asyncio.async(dispose(signame,
                                                               future)))
-        loop.run_until_complete(future)
-        loop.stop()
-        sys.exit(future.result())
+    loop.run_until_complete(future)
+    loop.stop()
+    sys.exit(future.result())
 
 
 if __name__ == '__main__':
