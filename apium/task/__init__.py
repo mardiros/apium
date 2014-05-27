@@ -36,8 +36,6 @@ class TaskRegistry(object):
                 self.queues[self.default_queue].append(task.name)
 
         self._registry[task.name] = task
-        # Then install the decorator that patch the decorated method
-        task.install()
 
 
     def get(self, task_name):
@@ -165,11 +163,6 @@ class Task:
         if 'timeout' in kwargs:
             self.timeout = kwargs['timeout']
         self._name = kwargs.get('name', None)
-
-    def install(self):
-        """ Install the decorator """
-        setattr(importlib.import_module(self._origin.__module__),
-                self._origin.__name__, self)
 
     @asyncio.coroutine
     def __call__(self, *args, **kwargs):

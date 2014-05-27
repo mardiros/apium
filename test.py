@@ -4,38 +4,34 @@ import asyncio
 
 from apium.registry import get_driver
 from apium.config import Configurator
-
-from apium.task import sample
+from apium.proxy import apium
 
 
 @asyncio.coroutine
-def routine(future):
+def routine(future, config):
     try:
-        app = get_driver()
-        connected = yield from app.connect_broker()
-        if not connected:
-            print('Cannot connect to the broker')
-            return
+        Configurator.from_yaml(config)
+        yield from get_driver().connect_broker()
+        get_driver().attach_signals()
 
-
-        result = yield from sample.add(1, 2)
+        result = yield from apium.apium.task.sample.add(1, 2)
         print("1 + 2 =", result)
 
-        result = yield from sample.multiply(2, 16)
+        result = yield from apium.dotted.multiply(2, 16)
         print("2 * 16 = ", result)
 
-        result = yield from sample.divide(8, 2)
+        result = yield from apium.apium.task.sample.divide(8, 2)
         print("8 / 2 = ", result)
 
-        result = yield from sample.noop(1, task_options={'timeout': 2})
+        result = yield from apium.noop(1, task_options={'timeout': 2})
         print ("wait for", result, "seconds")
-        result = yield from sample.aionoop(2, task_options={'timeout': 1})
+        result = yield from apium.aionoop(2, task_options={'timeout': 1})
         print (result)
     except Exception as exc:
         traceback.print_exc()
     finally:
         try:
-            yield from app.disconnect_broker()
+            yield from get_driver().disconnect_broker()
         except Exception as exc:
             traceback.print_exc()
         future.set_result(None)
@@ -43,10 +39,9 @@ def routine(future):
 
 def main(argv=sys.argv):
 
-    Configurator.from_yaml(argv[1])
     future = asyncio.Future()
     loop = asyncio.get_event_loop()
-    loop.call_soon(asyncio.Task(routine(future)))
+    loop.call_soon(asyncio.Task(routine(future, argv[1])))
     loop.run_until_complete(future)
     loop.stop()
 

@@ -14,7 +14,7 @@ def add(a, b):
     return a + b
 
 
-@task()
+@task(name='dotted.multiply')
 def multiply(a, b):
     return a * b
 
