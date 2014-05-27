@@ -18,9 +18,9 @@ log = logging.getLogger(__name__)
 class Broker(object):
     """ IBroker implementation for AMQP """
 
-    def __init__(self, application):
-        """ Build the broker for the given application """
-        self._app = application
+    def __init__(self, driver):
+        """ Build the broker for the given driver """
+        self._driver = driver
         self._task_queue = asyncio.Queue(maxsize=1)
         self._serializer = registry.get(ISerializer)()
         self._start_consuming = False
@@ -39,8 +39,12 @@ class Broker(object):
     def connect(self, url):
         """ Connect to the broker server.
         """
-        self._protocol = yield from aioamqp.from_url(url)
-        self._channel = yield from self._protocol.channel()
+        try:
+            self._protocol = yield from aioamqp.from_url(url)
+            self._channel = yield from self._protocol.channel()
+        except Exception:
+            import traceback
+            traceback.print_exc()
 
     @asyncio.coroutine
     def disconnect(self):
@@ -131,7 +135,7 @@ class Broker(object):
     @asyncio.coroutine
     def _subscribe_result_queue(self):
 
-        queue = self._app.get_result_queue()
+        queue = self._driver.get_result_queue()
         log.info('basic consume {}'.format(queue))
         consumer_tag = 'result-{}'.format(queue)
         self._consumer_tags.append(consumer_tag)
@@ -143,7 +147,7 @@ class Broker(object):
     @asyncio.coroutine
     def _subscribe_task_queues(self):
 
-        for queue in self._app._working_queues:
+        for queue in self._driver._working_queues:
             log.info('basic consume {}'.format(queue))
             consumer_tag = 'task-{}'.format(queue)
             self._consumer_tags.append(consumer_tag)

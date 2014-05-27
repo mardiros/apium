@@ -1,7 +1,8 @@
 """
 Load the apium configuration
 """
-
+import asyncio
+import signal
 import importlib
 import logging
 from logging.config import dictConfig
@@ -59,7 +60,7 @@ class Configurator(object):
                  result_exchange='#apium-{hostname}-{pid}',
                  # Other interfaces in the registry
                  worker='apium.worker.process.Worker',
-                 application='apium.application.Apium',
+                 driver='apium.driver.Driver',
                  routes=None,
                  logging=None
                  ):
@@ -75,7 +76,7 @@ class Configurator(object):
         broker = broker_url.split(':', 1).pop(0).split('+').pop(0)
         self.implementations = {
             'IBroker': 'apium.broker.{}.Broker'.format(broker),
-            'IApium': application,
+            'IDriver': driver,
             'ISerializer': 'apium.serializer.{}.Serializer'.format(serializer),
             'IWorker': worker,
             }
@@ -92,7 +93,7 @@ class Configurator(object):
                   'max_workers': config.get('apium.worker.max_workers', None),
                   # Other interfaces in the registry
                   'worker': config.get('apium.registry.IWorker'),
-                  'application': config.get('apium.registry.IApium'),
+                  'driver': config.get('apium.registry.IDriver'),
                   'result_exchange': config.get('apium.result_exchange'),
                   'logging': config.get('logging'),
                   'routes': config.get('apium.routes'),
@@ -108,15 +109,43 @@ class Configurator(object):
         return conf
 
     def end(self):
-        """ Apply the configuration in application registry. """
+        """ Apply the configuration in driver registry. """
 
         for key, val in self.implementations.items():
             registry.register(_import(val))
 
-        app = registry.get_application()
-        app.settings.update(self.settings)
-        app.configure_queues(**self.routes)
+        driver = registry.get_driver()
+        driver.settings.update(self.settings)
+        driver.configure_queues(**self.routes)
 
-        scanner = venusian.Scanner(app=app)
+        scanner = venusian.Scanner(driver=driver)
         for mod in self.task_import:
             scanner.scan(importlib.import_module(mod))
+
+
+@asyncio.coroutine
+def dispose(signame):
+    print('!'*80)
+    log.info('got signal {}, exiting'.format(signame))
+    try:
+        driver = get_driver()
+        yield from driver.stop()
+    except Exception:
+        log.error('Unexpected exception while terminating', exc_info=True)
+
+
+@asyncio.coroutine
+def aioincludeme(config):
+    Configurator.from_yaml(config.registry.settings['apium.config'])
+    driver = registry.get_driver()
+    connected = yield from driver.connect_broker()
+    if not connected:
+        raise Exception('Cannot connect to the broker')
+
+    print('*'*80)
+    loop = asyncio.get_event_loop()
+    print(id(loop))
+    for signame in ('SIGINT', 'SIGTERM'):
+        loop.add_signal_handler(getattr(signal, signame),
+                                lambda: asyncio.async(dispose(signame)))
+    print('*'*80)

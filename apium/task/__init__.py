@@ -69,15 +69,15 @@ class TaskRegistry(object):
 class TaskRequest:
     """ Represent a task instance to run """
 
-    def __init__(self, application, task_name, task_args, task_kwargs,
+    def __init__(self, driver, task_name, task_args, task_kwargs,
                  uuid=None, ignore_result=None,
                  result_queue=None):
-        self._app = application
+        self._driver = driver
         self.uuid = uuid or str(uuid4())
         self.task_name = task_name
         self.task_args = task_args
         self.task_kwargs = task_kwargs
-        self.result_queue = result_queue or self._app.get_result_queue()
+        self.result_queue = result_queue or self._driver.get_result_queue()
         self.ignore_result = ignore_result
 
     @asyncio.coroutine
@@ -93,7 +93,7 @@ class TaskRequest:
 
         :return: the result of the task
         """
-        result = yield from self._app.pop_result(self, timeout)
+        result = yield from self._driver.pop_result(self, timeout)
         return result
 
     def to_dict(self):
@@ -140,8 +140,8 @@ class Task:
     queue = None
     timeout = None
 
-    def __init__(self, application, method, **kwargs):
-        self._app = application
+    def __init__(self, driver, method, **kwargs):
+        self._driver = driver
 
         if 'name' in kwargs:
             self.name = kwargs['name']
@@ -180,9 +180,9 @@ class Task:
             ignore_result = task_options.get('ignore_result', ignore_result)
             timeout = task_options.get('timeout', timeout)
 
-        request = TaskRequest(self._app, self.name, args, kwargs,
+        request = TaskRequest(self._driver, self.name, args, kwargs,
                               ignore_result=ignore_result)
-        yield from self._app.push_task(request)
+        yield from self._driver.push_task(request)
         if ignore_result:
             return
         result = yield from request.get(timeout)
@@ -215,6 +215,7 @@ class Task:
                 ret = future.result()
             finally:
                 asyncio.set_event_loop(old_loop)
+                loop.close()
 
         return ret
 
@@ -227,8 +228,8 @@ def execute_task(task_name, uuid, args, kwargs):
     Python cannot easily pickle class method, that why the ITaskRegistry cannot
     be used directly.
     """
-    application = registry.get_application()
-    task_to_run = application.get_task(task_name)
+    driver = registry.get_driver()  # Here is the main reason we have a singleton
+    task_to_run = driver.get_task(task_name)
     log.info('Executing task {}'.format(task_name))
     log.debug('with param {}, {}'.format(args, kwargs))
     try:
@@ -258,9 +259,9 @@ class task:
     def __call__(self, wrapped):
 
         def callback(scanner, name, ob):
-            task_ = Task(scanner.app, wrapped, **self.task_options)
+            task_ = Task(scanner.driver, wrapped, **self.task_options)
             log.info('Register task {}'.format(task_.name))
-            scanner.app.register_task(task_)
+            scanner.driver.register_task(task_)
 
         venusian.attach(wrapped, callback, category='apium')
         return wrapped

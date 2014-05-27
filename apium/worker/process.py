@@ -4,7 +4,7 @@ from concurrent.futures import ProcessPoolExecutor
 
 from zope.interface import implementer
 from apium.interfaces import IWorker
-from apium.application import registry
+from apium import registry
 from apium.task import execute_task, TaskRequest
 
 log = logging.getLogger(__name__)
@@ -15,10 +15,10 @@ class Worker:
 
     name = 'process'
 
-    def __init__(self, application):
-        self._app = application
+    def __init__(self, driver):
+        self._driver = driver
         self._pool = None
-        self._pool_kwargs = {'max_workers': application.settings['max_workers']}
+        self._pool_kwargs = {'max_workers': driver.settings['max_workers']}
 
     def start(self):
         """ Start the worker pool """
@@ -42,7 +42,7 @@ class Worker:
         while True:
             try:
                 log.debug('Worker wait for a new task')
-                task_dict = yield from self._app.pop_task()
+                task_dict = yield from self._driver.pop_task()
             except Exception:
                 log.error('Unexpected error while retrieving task',
                           exc_info=True)
@@ -60,7 +60,7 @@ class Worker:
     def process(self, uuid, result_queue, task_name, task_args, task_kwargs,
                 ignore_result):
         """ Process the task """
-        async = TaskRequest(self._app, task_name, task_args, task_kwargs,
+        async = TaskRequest(self._driver, task_name, task_args, task_kwargs,
                             uuid=uuid, ignore_result=ignore_result,
                             result_queue=result_queue)
         loop = asyncio.get_event_loop()
@@ -71,4 +71,5 @@ class Worker:
         if not ignore_result:
             log.info('Pushing result for task {} {}'
                      ''.format(task_name, uuid))
-            yield from self._app.push_result(async, result)
+            yield from self._driver.push_result(async, result)
+

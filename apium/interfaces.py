@@ -12,10 +12,12 @@ from zope.interface import (
     )
 
 
-class IApium(Interface):
-    """ Apium application container """
+class IDriver(Interface):
+    """ Apium driver handle the high level api of the broker communication.
+    It is expose has a singleton to be the mediator for tasks treatment.
+    """
 
-    settings = Attribute("""A dict like object that store application settings
+    settings = Attribute("""A dict like object that store driver settings
                          """)
 
     def get_task(self, task_name):
@@ -80,12 +82,12 @@ class IApium(Interface):
 
 
 class IBroker(Interface):
-    """ Mediator for tasks treatment, connect to a broker. """
+    """ Low level broker api """
 
     connected = Attribute(""" read only boolean status of the connection """)
 
-    def __init__(self, application):
-        """ Build the broker for the given application """
+    def __init__(self, driver):
+        """ Build the broker for the given driver """
 
     def connect(self, *args, **kwargs):
         """ Connect to the broker server. """

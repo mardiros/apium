@@ -8,7 +8,7 @@ based on zope.interfaces
 from zope.interface import interface, declarations, implementedBy
 from zope.interface.adapter import AdapterRegistry
 
-from .interfaces import IApium
+from .interfaces import IDriver
 
 _iface_registry = AdapterRegistry()
 
@@ -17,7 +17,7 @@ def register(registred_type, *adapted_ifaces, **kwargs):
     """ Register an adapter class for an original interface that implement
     adapted_ifaces. """
     assert registred_type, 'You need to pass an Interface'
-    original_iface = kwargs.get('adapt', IApium)
+    original_iface = kwargs.get('adapt', IDriver)
 
     # deal with class->interface adapters:
     if not isinstance(original_iface, interface.InterfaceClass):
@@ -36,7 +36,7 @@ def register(registred_type, *adapted_ifaces, **kwargs):
         _iface_registry.register([original_iface], iface, '', registred_type)
 
 
-def get(adapted_iface, original_iface=IApium):
+def get(adapted_iface, original_iface=IDriver):
     """ Return registered adapter for a given class and interface. """
 
     if not isinstance(original_iface, interface.InterfaceClass):
@@ -53,7 +53,7 @@ def get(adapted_iface, original_iface=IApium):
 _instances = {}
 
 
-def get_component(adapted_iface, original_iface=IApium):
+def get_component(adapted_iface, original_iface=IDriver):
     """ Return a singleton object for the given interface """
 
     if (adapted_iface, original_iface) not in _instances:
@@ -63,6 +63,6 @@ def get_component(adapted_iface, original_iface=IApium):
     return _instances[(adapted_iface, original_iface)]
 
 
-def get_application():
-    """ Return the Apium Singleton """
-    return get_component(IApium)
+def get_driver():
+    """ Return the Driver Singleton """
+    return get_component(IDriver)

@@ -33,7 +33,6 @@ class noop:
 
 
 @task(name='aionoop')
-class aionoop:
-    def __call__(self, sleep_time):
-        yield from asyncio.sleep(sleep_time)
-        return sleep_time
+def aionoop(self, sleep_time):
+    yield from asyncio.sleep(sleep_time)
+    return sleep_time

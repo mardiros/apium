@@ -2,7 +2,7 @@ import sys
 import traceback
 import asyncio
 
-from apium.registry import get_application
+from apium.registry import get_driver
 from apium.config import Configurator
 
 from apium.task import sample
@@ -11,7 +11,7 @@ from apium.task import sample
 @asyncio.coroutine
 def routine(future):
     try:
-        app = get_application()
+        app = get_driver()
         connected = yield from app.connect_broker()
         if not connected:
             print('Cannot connect to the broker')

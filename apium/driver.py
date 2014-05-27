@@ -1,5 +1,5 @@
 """
-Apium application container
+Apium driver implementation.
 """
 import os
 import inspect
@@ -12,16 +12,16 @@ import importlib
 from zope.interface import implementer
 
 from . import registry
-from .interfaces import IApium, IWorker, IBroker, ISerializer
+from .interfaces import IDriver, IWorker, IBroker, ISerializer
 from .task import TaskRegistry, Task
 
 log = logging.getLogger(__name__)
 
 
-@implementer(IApium)
-class Apium:
+@implementer(IDriver)
+class Driver:
     """
-    The Apium implementation.
+    Manage the task
     """
 
     def __init__(self):

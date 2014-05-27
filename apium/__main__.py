@@ -5,7 +5,7 @@ import asyncio
 import signal
 from concurrent.futures import TimeoutError
 
-from apium.registry import get_application
+from apium.registry import get_driver
 from apium.config import Configurator
 
 log = logging.getLogger(__name__)
@@ -15,20 +15,20 @@ log = logging.getLogger(__name__)
 def start_worker(queues):
     try:
         log.info('Starting Apium Worker')
-        app = get_application()
-        connected = yield from app.connect_broker()
+        driver = get_driver()
+        connected = yield from driver.connect_broker()
         if not connected:
             log.error("Can't connect to the broker, failed to start")
             sys.exit(1)
 
-        log.info('Apium application connected')
-        queues = queues.split(',') if queues else app._working_queues
+        log.info('Apium driver connected')
+        queues = queues.split(',') if queues else driver._working_queues
 
         for queue in queues:
             log.info('Create queue {}'.format(queue))
-            yield from app.create_queue(queue)
+            yield from driver.create_queue(queue)
 
-        worker = app.create_worker()
+        worker = driver.create_worker()
         worker.start()
         yield from worker.run_forever()
     except Exception:
@@ -39,8 +39,8 @@ def start_worker(queues):
 def dispose(signame, future):
     log.info('got signal {}, exiting'.format(signame))
     try:
-        app = get_application()
-        yield from app.stop()
+        driver = get_driver()
+        yield from driver.stop()
         future.set_result(0)
     except Exception:
         log.error('Unexpected exception while terminating', exc_info=True)
