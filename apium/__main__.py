@@ -35,18 +35,6 @@ def start_worker(queues):
         log.error('Oops, something should not happen', exc_info=True)
 
 
-@asyncio.coroutine
-def dispose(signame, future):
-    log.info('got signal {}, exiting'.format(signame))
-    try:
-        driver = get_driver()
-        yield from driver.stop()
-        future.set_result(0)
-    except Exception:
-        log.error('Unexpected exception while terminating', exc_info=True)
-        future.set_result(1)
-
-
 def main(args=sys.argv):
 
     parser = argparse.ArgumentParser()
@@ -72,15 +60,7 @@ def main(args=sys.argv):
     loop = asyncio.get_event_loop()
     loop.call_soon(asyncio.Task(func(**settings)))
 
-    future = asyncio.Future()
-    loop = asyncio.get_event_loop()
-    for signame in ('SIGINT', 'SIGTERM'):
-        loop.add_signal_handler(getattr(signal, signame),
-                                lambda: asyncio.async(dispose(signame,
-                                                              future)))
-    loop.run_until_complete(future)
-    loop.stop()
-    sys.exit(future.result())
+    get_driver().run_forever()
 
 
 if __name__ == '__main__':

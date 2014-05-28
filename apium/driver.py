@@ -2,9 +2,11 @@
 Apium driver implementation.
 """
 import os
+import sys
 import inspect
 import socket
 import asyncio
+import signal
 import types
 import logging
 import importlib
@@ -33,6 +35,7 @@ class Driver:
         self._task_registry = TaskRegistry()
         self._working_queues = []
         self._result_queue = None
+        self._running_future = asyncio.Future()
 
     def get_result_queue(self):
         """ Return the result queue name to use when sending task """
@@ -77,7 +80,21 @@ class Driver:
             return False
 
         yield from self._broker.create_queue(self.get_result_queue())
+
+        loop = asyncio.get_event_loop()
+        for signame in ('SIGINT', 'SIGTERM'):
+            loop.add_signal_handler(getattr(signal, signame),
+                                    lambda: asyncio.async(self.stop()))
         return True
+
+    def run_forever(self):
+
+        loop = asyncio.get_event_loop()
+        loop.call_soon(asyncio.Task(self.connect_broker()))
+
+        loop.run_until_complete(self._running_future)
+        loop.stop()
+        sys.exit(self._running_future.result())
 
     @asyncio.coroutine
     def disconnect_broker(self):
@@ -90,9 +107,14 @@ class Driver:
 
     @asyncio.coroutine
     def stop(self):
-        yield from self.disconnect_broker()
-        if self._worker is not None:
-            self._worker.stop()
+        try:
+            yield from self.disconnect_broker()
+            if self._worker is not None:
+                self._worker.stop()
+            self._running_future.set_result(0)
+        except Exception:
+            log.error('Unexpected exception while terminating', exc_info=True)
+            self._running_future.set_result(1)
 
     def create_worker(self):
         """ Create the backend worker"""
