@@ -21,6 +21,8 @@ def start_worker(queues):
             log.error("Can't connect to the broker, failed to start")
             sys.exit(1)
 
+        driver.attach_signals()
+
         log.info('Apium driver connected')
         queues = queues.split(',') if queues else driver._working_queues
 

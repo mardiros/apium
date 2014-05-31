@@ -81,11 +81,14 @@ class Driver:
 
         yield from self._broker.create_queue(self.get_result_queue())
 
+        return True
+
+    def attach_signals(self):
+        """ Handle Unix signal SIGINT and SIGTERM to cleanup before exiting """
         loop = asyncio.get_event_loop()
         for signame in ('SIGINT', 'SIGTERM'):
             loop.add_signal_handler(getattr(signal, signame),
                                     lambda: asyncio.async(self.stop()))
-        return True
 
     def run_forever(self):
 
