@@ -133,18 +133,3 @@ def dispose(signame):
         log.error('Unexpected exception while terminating', exc_info=True)
 
 
-@asyncio.coroutine
-def aioincludeme(config):
-    Configurator.from_yaml(config.registry.settings['apium.config'])
-    driver = registry.get_driver()
-    connected = yield from driver.connect_broker()
-    if not connected:
-        raise Exception('Cannot connect to the broker')
-
-    print('*'*80)
-    loop = asyncio.get_event_loop()
-    print(id(loop))
-    for signame in ('SIGINT', 'SIGTERM'):
-        loop.add_signal_handler(getattr(signal, signame),
-                                lambda: asyncio.async(dispose(signame)))
-    print('*'*80)
