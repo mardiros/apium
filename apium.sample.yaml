@@ -25,7 +25,7 @@ apium:
                 - apium.task.sample.add
     # on startup, apium will load those module to get
     # tasks in it loaded in the task registry
-    import:
+    scan:
         - apium.task.sample
 
 

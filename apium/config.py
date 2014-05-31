@@ -56,7 +56,7 @@ class Configurator(object):
                  broker_url='amqp://localhost',
                  serializer='json',
                  max_workers=None,
-                 task_import=None,
+                 task_scan=None,
                  result_exchange='#apium-{hostname}-{pid}',
                  # Other interfaces in the registry
                  worker='apium.worker.process.Worker',
@@ -72,7 +72,7 @@ class Configurator(object):
                          'max_workers': max_workers,
                          'result_exchange': result_exchange}
         self.routes = routes or {}
-        self.task_import = task_import or []
+        self.task_scan = task_scan or []
         broker = broker_url.split(':', 1).pop(0).split('+').pop(0)
         self.implementations = {
             'IBroker': 'apium.broker.{}.Broker'.format(broker),
@@ -88,7 +88,7 @@ class Configurator(object):
         """
         config = YamlConfig(filename)
         kwargs = {'broker_url': config.get('apium.broker.url', None),
-                  'task_import': config.get('apium.import', None),
+                  'task_scan': config.get('apium.scan', None),
                   'serializer': config.get('apium.serializer', None),
                   'max_workers': config.get('apium.worker.max_workers', None),
                   # Other interfaces in the registry
@@ -119,13 +119,12 @@ class Configurator(object):
         driver.configure_queues(**self.routes)
 
         scanner = venusian.Scanner(driver=driver)
-        for mod in self.task_import:
+        for mod in self.task_scan:
             scanner.scan(importlib.import_module(mod))
 
 
 @asyncio.coroutine
 def dispose(signame):
-    print('!'*80)
     log.info('got signal {}, exiting'.format(signame))
     try:
         driver = get_driver()
