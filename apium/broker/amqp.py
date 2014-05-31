@@ -30,10 +30,7 @@ class Broker(object):
         self._protocol = None
         self._channel = None
         self._consumer_tags = []
-
-    @property
-    def connected(self):
-        return self._protocol is not None
+        self.connected = False
 
     @asyncio.coroutine
     def connect(self, url):
@@ -42,6 +39,7 @@ class Broker(object):
         try:
             self._protocol = yield from aioamqp.from_url(url)
             self._channel = yield from self._protocol.channel()
+            self.connected = True
         except Exception:
             import traceback
             traceback.print_exc()
@@ -49,6 +47,7 @@ class Broker(object):
     @asyncio.coroutine
     def disconnect(self):
         """ Disconnect to the broker server. """
+        self.connected = False
         log.info('basic cancel')
         for tag in self._consumer_tags:
             yield from self._channel.basic_cancel(tag)
@@ -76,16 +75,17 @@ class Broker(object):
     @asyncio.coroutine
     def delete_queue(self, queue):
         """ delete working queues """
-        log.info('Deleting echange {}'.format(queue))
+        log.info('Deleting exchange {}'.format(queue))
         try:
             yield from self._channel.exchange_delete(queue, no_wait=False)
         except Exception:
-            log.exception()
+            log.exception('Unmanaged exception while deleting exchange')
         log.info('Deleting queue {}'.format(queue))
         try:
             yield from self._channel.queue_delete(queue, no_wait=False)
         except Exception:
-            log.exception()
+            log.exception('Unmanaged exception while deleting queue {}'
+                          ''.format(queue))
 
     @asyncio.coroutine
     def publish_message(self, message, queue):
@@ -182,8 +182,9 @@ class Broker(object):
                 yield from self._channel.basic_client_ack(delivery_tag)
 
             except (ChannelClosed, ConsumerCancelled) as exc:
+                if not self.connected:
+                    break
                 log.warning('Consumer has been closed, open a new channel')
-
                 # reconnect the channel
                 self._channel = yield from self._protocol.channel()
                 if self._start_consuming_task:
