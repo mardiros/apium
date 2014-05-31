@@ -41,8 +41,7 @@ class Broker(object):
             self._channel = yield from self._protocol.channel()
             self.connected = True
         except Exception:
-            import traceback
-            traceback.print_exc()
+            log.exception('Exception while connecting to broker')
 
     @asyncio.coroutine
     def disconnect(self):
