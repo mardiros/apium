@@ -141,8 +141,7 @@ class Broker(object):
         self._consumer_tags.append(consumer_tag)
         yield from self._channel.basic_consume(queue, consumer_tag,
                                                no_wait=False)
-        loop = asyncio.get_event_loop()
-        loop.call_soon(asyncio.Task(self._consume_queue(consumer_tag)))
+        asyncio.async(self._consume_queue(consumer_tag))
 
     @asyncio.coroutine
     def _subscribe_task_queues(self):
@@ -154,7 +153,7 @@ class Broker(object):
             yield from self._channel.basic_consume(queue, consumer_tag,
                                                    no_wait=False)
             loop = asyncio.get_event_loop()
-            loop.call_soon(asyncio.Task(self._consume_queue(consumer_tag)))
+            asyncio.async(self._consume_queue(consumer_tag))
 
     @asyncio.coroutine
     def _consume_queue(self, consumer_tag):

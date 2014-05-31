@@ -93,11 +93,8 @@ class Driver:
     def run_forever(self):
 
         loop = asyncio.get_event_loop()
-        loop.call_soon(asyncio.Task(self.connect_broker()))
-
         loop.run_until_complete(self._running_future)
         loop.stop()
-        sys.exit(self._running_future.result())
 
     @asyncio.coroutine
     def disconnect_broker(self):

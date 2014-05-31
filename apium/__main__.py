@@ -59,9 +59,7 @@ def main(args=sys.argv):
 
     config = Configurator.from_yaml(config_uri)
 
-    loop = asyncio.get_event_loop()
-    loop.call_soon(asyncio.Task(func(**settings)))
-
+    asyncio.async(func(**settings))
     get_driver().run_forever()
 
 
