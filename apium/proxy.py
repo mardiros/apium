@@ -10,6 +10,8 @@ from .registry import get_driver
 
 class Proxy:
     def __getattr__(self, name):
+        if name == '__venusian_callbacks__':  # Venusian scan must ignore me
+            raise AttributeError(name)
         return _Method(name)
 
 
